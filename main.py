@@ -19,6 +19,7 @@ def run_flask():
 TELEGRAM_TOKEN = os.environ.get('TELEGRAM_TOKEN')
 GEMINI_API_KEY = os.environ.get('GEMINI_API_KEY')
 
+# إعداد عميل Gemini
 client = genai.Client(api_key=GEMINI_API_KEY)
 bot = telebot.TeleBot(TELEGRAM_TOKEN)
 
@@ -26,8 +27,9 @@ bot = telebot.TeleBot(TELEGRAM_TOKEN)
 @bot.message_handler(func=lambda message: True)
 def handle_message(message):
   try:
+    # استخدام النموذج المتوافق رسمياً مع مكتبة google-genai
     response = client.models.generate_content(
-        model='gemini-1.5-flash',
+        model='gemini-2.0-flash',
         contents=(
             'أنت مساعد تسويقي محترف للمتاجر. صغ إعلاناً جذاباً بناءً على الطلب'
             ' التالي:'
