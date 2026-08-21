@@ -1,39 +1,42 @@
 import os
 import threading
 from flask import Flask
-from anthropic import Anthropic
+import google.generativeai as genai
 import telebot
 
-# إعداد خادم الويب (لإبقاء الخدمة مستيقظة)
 app = Flask(__name__)
+
+
 @app.route('/')
 def home():
-    return "Bot is alive!"
+  return 'Bot is alive!'
+
 
 def run_flask():
-    app.run(host='0.0.0.0', port=int(os.environ.get('PORT', 8080)))
+  app.run(host='0.0.0.0', port=int(os.environ.get('PORT', 8080)))
 
-# إعدادات البوت
-TELEGRAM_TOKEN = os.environ.get("TELEGRAM_TOKEN")
-CLAUDE_API_KEY = os.environ.get("CLAUDE_API_KEY")
 
+TELEGRAM_TOKEN = os.environ.get('TELEGRAM_TOKEN')
+GEMINI_API_KEY = os.environ.get('GEMINI_API_KEY')
+
+genai.configure(api_key=GEMINI_API_KEY)
+# استخدام النموذج المعتمد بشكل مباشر
+model = genai.GenerativeModel('gemini-1.5-flash')
 bot = telebot.TeleBot(TELEGRAM_TOKEN)
-claude = Anthropic(api_key=CLAUDE_API_KEY)
+
 
 @bot.message_handler(func=lambda message: True)
 def handle_message(message):
-    try:
-        response = claude.messages.create(
-            model="claude-3-haiku-20240307",
-            max_tokens=500,
-            messages=[{"role": "user", "content": f"صغ إعلاناً جذاباً لـ: {message.text}"}],
-        )
-        bot.reply_to(message, response.content[0].text)
-    except Exception as e:
-        bot.reply_to(message, "حدث خطأ.")
+  try:
+    prompt = f'أنت مساعد تسويقي محترف للمتاجر. صغ إعلاناً جذاباً بناءً على الطلب التالي: {message.text}'
+    response = model.generate_content(prompt)
+    bot.reply_to(message, response.text)
+  except Exception as e:
+    # طباعة الخطأ الحقيقي لمعرفته من Render Logs
+    print(f'Error: {e}')
+    bot.reply_to(message, f'حدث خطأ: {str(e)[:100]}')
 
-if __name__ == "__main__":
-    # تشغيل Flask في Thread منفصل
-    threading.Thread(target=run_flask).start()
-    # تشغيل البوت
-    bot.infinity_polling()
+
+if __name__ == '__main__':
+  threading.Thread(target=run_flask).start()
+  bot.infinity_polling()
