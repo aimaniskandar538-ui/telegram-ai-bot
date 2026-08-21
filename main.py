@@ -26,13 +26,11 @@ bot = telebot.TeleBot(TELEGRAM_TOKEN)
 @bot.message_handler(func=lambda message: True)
 def handle_message(message):
   try:
-    # استخدام اسم النموذج المعتمد والمفعل في واجهة google-genai
     response = client.models.generate_content(
         model='gemini-2.5-flash',
         contents=(
             'أنت مساعد تسويقي محترف للمتاجر. صغ إعلاناً جذاباً بناءً على الطلب'
-            ' التالي:'
-            f' {message.text}'
+            f' التالي: {message.text}'
         ),
     )
     bot.reply_to(message, response.text)
