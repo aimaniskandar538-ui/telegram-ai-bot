@@ -1,7 +1,7 @@
 import os
 import threading
 from flask import Flask
-import google.generativeai as genai
+from google import genai
 import telebot
 
 app = Flask(__name__)
@@ -19,19 +19,20 @@ def run_flask():
 TELEGRAM_TOKEN = os.environ.get('TELEGRAM_TOKEN')
 GEMINI_API_KEY = os.environ.get('GEMINI_API_KEY')
 
-# إعداد الربط المباشر مع النموذج الشغال
-genai.configure(api_key=GEMINI_API_KEY)
-model = genai.GenerativeModel('gemini-2.0-flash')
-
+# استخدام العميل الحديث والمباشر
+client = genai.Client(api_key=GEMINI_API_KEY)
 bot = telebot.TeleBot(TELEGRAM_TOKEN)
 
 
 @bot.message_handler(func=lambda message: True)
 def handle_message(message):
   try:
-    response = model.generate_content(
-        'أنت مساعد تسويقي محترف. صغ إعلاناً جذاباً بناءً على الطلب:'
-        f' {message.text}'
+    response = client.models.generate_content(
+        model='gemini-2.5-flash',
+        contents=(
+            'أنت مساعد تسويقي محترف للمتاجر. صغ إعلاناً جذاباً بناءً على الطلب'
+            f' التالي: {message.text}'
+        ),
     )
     bot.reply_to(message, response.text)
   except Exception as e:
