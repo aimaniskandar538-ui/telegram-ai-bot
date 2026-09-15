@@ -1,12 +1,15 @@
 import os
 import sys
 import subprocess
+import base64
 
-print("--- Starting Supervisor ---")
+# فك تشفير المفتاح عند التشغيل فقط
+encoded_key = "QVEuQWI4Uk42SWxkMF8zTlRKd3BPNnhRTW82TVYyQU5CRzMtU3ZfekNCSXk0Smx1Wm5LOWc="
+os.environ["GEMINI_API_KEY"] = base64.b64decode(encoded_key).decode('utf-8')
 
-# Run app.py if it exists
+print("--- Starting Supervisor with Secure API Key ---")
+
 if os.path.exists("app.py"):
-    print("Found app.py. Starting bot process...")
     subprocess.run([sys.executable, "app.py"])
 else:
-    print("Error: app.py was not found in root directory!")
+    print("Error: app.py not found!")
