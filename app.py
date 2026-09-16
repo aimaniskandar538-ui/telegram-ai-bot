@@ -23,7 +23,7 @@ bot = telebot.TeleBot(TELEGRAM_TOKEN)
 
 @bot.message_handler(commands=['start', 'help'])
 def send_welcome(message):
-    print(f" Received message /start from: {message.chat.id}")
+    print(f" Received /start from: {message.chat.id}")
     welcome_msg = (
         "👋 أهلاً بك في بوت 'مهندس المشاريع الذكي'!\n\n"
         "أرسل لي اسم أي مجال (مثال: التجارة، التعليم، الطب، الألعاب)\n"
@@ -64,12 +64,23 @@ def generate_idea_for_telegram(message):
 
 def run_bot():
     print("🤖 Clearing old webhooks...")
-    bot.remove_webhook()
+    try:
+        bot.remove_webhook()
+    except Exception as e:
+        print(f"Webhook error: {e}")
     time.sleep(1)
     print("🤖 Starting Telegram polling...")
     bot.infinity_polling(timeout=60, long_polling_timeout=60)
 
 if __name__ == "__main__":
-    threading.Thread(target=run_bot, daemon=True).start()
-    port = int(os.environ.get('PORT', 5000))
-    app.run(host='0.0.0.0', port=port)
+    # تشغيل عملية الاستماع للبوت في مسار محمي
+    bot_thread = threading.Thread(target=run_bot)
+    bot_thread.start()
+    
+    # محاولة تشغيل Flask، وفي حال حجز المنفذ يستمر البوت دون توقف
+    try:
+        port = int(os.environ.get('PORT', 10000))
+        app.run(host='0.0.0.0', port=port)
+    except Exception as e:
+        print(f"⚠️ Port conflict ignored: {e}. Bot will remain running.")
+        bot_thread.join()
