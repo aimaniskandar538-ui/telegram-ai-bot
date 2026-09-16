@@ -10,10 +10,10 @@ app = Flask(__name__)
 def home():
     return "Idea Generator Bot is Live!"
 
+# إعداد مفتاح جيميني
 genai.configure(api_key=os.environ.get("GEMINI_API_KEY"))
 model = genai.GenerativeModel('gemini-1.5-pro')
 
-# تم التحديث بالتوكن الجديد
 TELEGRAM_TOKEN = "8804142794:AAHpJN3M1KGDVrM34CMc88VFE5siEFnO_cg"
 bot = telebot.TeleBot(TELEGRAM_TOKEN)
 
@@ -56,10 +56,13 @@ def generate_idea_for_telegram(message):
         bot.edit_message_text(chat_id=message.chat.id, message_id=wait_msg.message_id, text=f"❌ حدث خطأ: {e}")
 
 def run_bot():
-    print("🤖 جاري تشغيل بوت تلغرام بالتوكن الجديد...")
-    bot.infinity_polling()
+    print("🤖 جاري تشغيل بوت تلغرام...")
+    bot.infinity_polling(timeout=60, long_polling_timeout=60)
 
 if __name__ == "__main__":
+    # تشغيل البوت في مسار خلفي مستقل
     threading.Thread(target=run_bot, daemon=True).start()
+    
+    # تشغيل سيرفر الويب لضمان بقاء Render نشطاً
     port = int(os.environ.get('PORT', 5000))
     app.run(host='0.0.0.0', port=port)

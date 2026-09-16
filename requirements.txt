@@ -1,7 +1,4 @@
-streamlit
+Flask
 pyTelegramBotAPI
 google-generativeai
 requests
-python-dotenv
-flask
-gunicorn
