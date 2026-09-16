@@ -19,9 +19,28 @@ if api_key:
 TELEGRAM_TOKEN = "8804142794:AAHpJN3M1KGDVrM34CMc88VFE5siEFnO_cg"
 bot = telebot.TeleBot(TELEGRAM_TOKEN)
 
+def send_large_text(chat_id, text, wait_msg_id=None):
+    """تقسيم النصوص الطويلة وإرسالها على رسائل متتالية تجنباً لخطأ MESSAGE_TOO_LONG"""
+    max_length = 4000
+    chunks = []
+    
+    while len(text) > max_length:
+        split_pos = text.rfind('\n', 0, max_length)
+        if split_pos == -1:
+            split_pos = max_length
+        chunks.append(text[:split_pos])
+        text = text[split_pos:].lstrip()
+    if text:
+        chunks.append(text)
+        
+    for i, chunk in enumerate(chunks):
+        if i == 0 and wait_msg_id:
+            bot.edit_message_text(chat_id=chat_id, message_id=wait_msg_id, text=chunk)
+        else:
+            bot.send_message(chat_id=chat_id, text=chunk)
+
 def generate_with_fallback(prompt):
-    """يبحث عن أسرع وأحدث نموذج متاح ويولد الإجابة فوراً"""
-    # 1. التجربة عبر استعلام النماذج المتاحة من جوجل
+    """البحث عن أفضل نموذج متاح وتوليد الإجابة"""
     try:
         for m in genai.list_models():
             if 'generateContent' in m.supported_generation_methods:
@@ -35,7 +54,6 @@ def generate_with_fallback(prompt):
     except Exception as e:
         print(f"List models check failed: {e}")
 
-    # 2. خطة بديلة في حال تعذر الاستعلام: تجربة القائمة المباشرة
     candidate_models = [
         'gemini-2.5-flash',
         'gemini-2.0-flash',
@@ -59,7 +77,6 @@ def generate_with_fallback(prompt):
 
 @bot.message_handler(commands=['start', 'help'])
 def send_welcome(message):
-    print(f"Received /start from: {message.chat.id}")
     welcome_msg = (
         "👋 أهلاً بك في بوت 'مهندس المشاريع الذكي'!\n\n"
         "أرسل لي اسم أي مجال (مثال: التجارة، التعليم، الطب، الألعاب)\n"
@@ -69,7 +86,6 @@ def send_welcome(message):
 
 @bot.message_handler(func=lambda message: True)
 def generate_idea_for_telegram(message):
-    print(f"Generating idea for: {message.text}")
     user_input = message.text.strip()
     target_niche = "مجال مبتكر وعشوائي من اختيارك، فاجئني!" if user_input == 'مفاجأة' else user_input
     
@@ -88,24 +104,22 @@ def generate_idea_for_telegram(message):
     🧩 الميزات الأساسية:
     🛠️ الترسانة التقنية (Tech Stack):
     📈 نموذج العمل والربح:
-    🛤️ الخطوة الأولى للبدء:
+        🛤️ الخطوة الأولى للبدء:
     """
     
     try:
         response_text = generate_with_fallback(prompt)
-        bot.edit_message_text(chat_id=message.chat.id, message_id=wait_msg.message_id, text=response_text)
+        send_large_text(message.chat.id, response_text, wait_msg.message_id)
     except Exception as e:
         print(f"❌ Error: {e}")
         bot.edit_message_text(chat_id=message.chat.id, message_id=wait_msg.message_id, text=f"❌ حدث خطأ: {e}")
 
 def run_bot():
-    print("🤖 Clearing old webhooks...")
     try:
         bot.remove_webhook()
-    except Exception as e:
-        print(f"Webhook error: {e}")
+    except Exception:
+        pass
     time.sleep(1)
-    print("🤖 Starting Telegram polling...")
     bot.infinity_polling(timeout=60, long_polling_timeout=60)
 
 if __name__ == "__main__":
@@ -116,5 +130,4 @@ if __name__ == "__main__":
         port = int(os.environ.get('PORT', 10000))
         app.run(host='0.0.0.0', port=port)
     except Exception as e:
-        print(f"⚠️ Port conflict ignored: {e}. Bot will remain running.")
         bot_thread.join()
