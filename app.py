@@ -15,15 +15,51 @@ def home():
 api_key = os.environ.get("GEMINI_API_KEY")
 if api_key:
     genai.configure(api_key=api_key)
-    model = genai.GenerativeModel('gemini-1.5-pro')
 
-# توكن البوت
 TELEGRAM_TOKEN = "8804142794:AAHpJN3M1KGDVrM34CMc88VFE5siEFnO_cg"
 bot = telebot.TeleBot(TELEGRAM_TOKEN)
 
+def generate_with_fallback(prompt):
+    """يبحث عن أسرع وأحدث نموذج متاح ويولد الإجابة فوراً"""
+    # 1. التجربة عبر استعلام النماذج المتاحة من جوجل
+    try:
+        for m in genai.list_models():
+            if 'generateContent' in m.supported_generation_methods:
+                try:
+                    model = genai.GenerativeModel(m.name)
+                    res = model.generate_content(prompt)
+                    if res and res.text:
+                        return res.text
+                except Exception:
+                    continue
+    except Exception as e:
+        print(f"List models check failed: {e}")
+
+    # 2. خطة بديلة في حال تعذر الاستعلام: تجربة القائمة المباشرة
+    candidate_models = [
+        'gemini-2.5-flash',
+        'gemini-2.0-flash',
+        'gemini-1.5-flash',
+        'gemini-1.5-pro',
+        'gemini-pro'
+    ]
+    
+    last_error = None
+    for model_name in candidate_models:
+        try:
+            model = genai.GenerativeModel(model_name)
+            res = model.generate_content(prompt)
+            if res and res.text:
+                return res.text
+        except Exception as e:
+            last_error = e
+            continue
+            
+    raise Exception(f"تعذر الاتصال بجميع النماذج: {last_error}")
+
 @bot.message_handler(commands=['start', 'help'])
 def send_welcome(message):
-    print(f" Received /start from: {message.chat.id}")
+    print(f"Received /start from: {message.chat.id}")
     welcome_msg = (
         "👋 أهلاً بك في بوت 'مهندس المشاريع الذكي'!\n\n"
         "أرسل لي اسم أي مجال (مثال: التجارة، التعليم، الطب، الألعاب)\n"
@@ -33,7 +69,7 @@ def send_welcome(message):
 
 @bot.message_handler(func=lambda message: True)
 def generate_idea_for_telegram(message):
-    print(f" Generating idea for: {message.text}")
+    print(f"Generating idea for: {message.text}")
     user_input = message.text.strip()
     target_niche = "مجال مبتكر وعشوائي من اختيارك، فاجئني!" if user_input == 'مفاجأة' else user_input
     
@@ -56,8 +92,8 @@ def generate_idea_for_telegram(message):
     """
     
     try:
-        response = model.generate_content(prompt)
-        bot.edit_message_text(chat_id=message.chat.id, message_id=wait_msg.message_id, text=response.text)
+        response_text = generate_with_fallback(prompt)
+        bot.edit_message_text(chat_id=message.chat.id, message_id=wait_msg.message_id, text=response_text)
     except Exception as e:
         print(f"❌ Error: {e}")
         bot.edit_message_text(chat_id=message.chat.id, message_id=wait_msg.message_id, text=f"❌ حدث خطأ: {e}")
@@ -73,11 +109,9 @@ def run_bot():
     bot.infinity_polling(timeout=60, long_polling_timeout=60)
 
 if __name__ == "__main__":
-    # تشغيل عملية الاستماع للبوت في مسار محمي
     bot_thread = threading.Thread(target=run_bot)
     bot_thread.start()
     
-    # محاولة تشغيل Flask، وفي حال حجز المنفذ يستمر البوت دون توقف
     try:
         port = int(os.environ.get('PORT', 10000))
         app.run(host='0.0.0.0', port=port)
