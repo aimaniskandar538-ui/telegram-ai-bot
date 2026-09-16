@@ -1,4 +1,5 @@
 import os
+import time
 import threading
 import telebot
 import google.generativeai as genai
@@ -11,14 +12,18 @@ def home():
     return "Idea Generator Bot is Live!"
 
 # إعداد مفتاح جيميني
-genai.configure(api_key=os.environ.get("GEMINI_API_KEY"))
-model = genai.GenerativeModel('gemini-1.5-pro')
+api_key = os.environ.get("GEMINI_API_KEY")
+if api_key:
+    genai.configure(api_key=api_key)
+    model = genai.GenerativeModel('gemini-1.5-pro')
 
+# توكن البوت
 TELEGRAM_TOKEN = "8804142794:AAHpJN3M1KGDVrM34CMc88VFE5siEFnO_cg"
 bot = telebot.TeleBot(TELEGRAM_TOKEN)
 
 @bot.message_handler(commands=['start', 'help'])
 def send_welcome(message):
+    print(f" Received message /start from: {message.chat.id}")
     welcome_msg = (
         "👋 أهلاً بك في بوت 'مهندس المشاريع الذكي'!\n\n"
         "أرسل لي اسم أي مجال (مثال: التجارة، التعليم، الطب، الألعاب)\n"
@@ -28,6 +33,7 @@ def send_welcome(message):
 
 @bot.message_handler(func=lambda message: True)
 def generate_idea_for_telegram(message):
+    print(f" Generating idea for: {message.text}")
     user_input = message.text.strip()
     target_niche = "مجال مبتكر وعشوائي من اختيارك، فاجئني!" if user_input == 'مفاجأة' else user_input
     
@@ -53,16 +59,17 @@ def generate_idea_for_telegram(message):
         response = model.generate_content(prompt)
         bot.edit_message_text(chat_id=message.chat.id, message_id=wait_msg.message_id, text=response.text)
     except Exception as e:
+        print(f"❌ Error: {e}")
         bot.edit_message_text(chat_id=message.chat.id, message_id=wait_msg.message_id, text=f"❌ حدث خطأ: {e}")
 
 def run_bot():
-    print("🤖 جاري تشغيل بوت تلغرام...")
+    print("🤖 Clearing old webhooks...")
+    bot.remove_webhook()
+    time.sleep(1)
+    print("🤖 Starting Telegram polling...")
     bot.infinity_polling(timeout=60, long_polling_timeout=60)
 
 if __name__ == "__main__":
-    # تشغيل البوت في مسار خلفي مستقل
     threading.Thread(target=run_bot, daemon=True).start()
-    
-    # تشغيل سيرفر الويب لضمان بقاء Render نشطاً
     port = int(os.environ.get('PORT', 5000))
     app.run(host='0.0.0.0', port=port)
